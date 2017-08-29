@@ -1,0 +1,35 @@
+{
+  "name": "duplicate-detection-model-tools",
+  "version": "1.0.0",
+  "description": "",
+  "scripts": {
+    "postinstall": "cd melinda-deduplication-common && npm install",
+    "test": "npm run flow",
+    "test:unit": "mocha *.spec.js",
+    "test:watch": "mocha *.spec.js -w",
+    "flow": "flow"
+  },
+  "author": "Pasi Tuominen <pasi.tuominen@gmail.com>",
+  "license": "ISC",
+  "devDependencies": {
+    "babel-cli": "^6.24.1",
+    "babel-eslint": "^7.2.3",
+    "babel-plugin-module-resolver": "^2.7.1",
+    "babel-preset-flow": "^6.23.0",
+    "chai": "^4.1.1",
+    "concurrently": "^3.5.0",
+    "eslint": "^4.1.1",
+    "eslint-import-resolver-babel-module": "^3.0.0",
+    "eslint-plugin-flowtype": "^2.34.0",
+    "eslint-plugin-import": "^2.6.0",
+    "flow-bin": "^0.53.0",
+    "mocha": "^3.5.0",
+    "nodemon": "^1.11.0",
+    "sinon": "^3.2.1"
+  },
+  "dependencies": {
+    "debug": "^2.6.8",
+    "lodash": "^4.17.4",
+    "synaptic": "^1.0.12"
+  }
+}
