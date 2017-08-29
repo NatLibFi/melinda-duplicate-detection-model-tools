@@ -1,39 +1,25 @@
-#!/usr/bin/env node
 /* eslint-disable no-console */
 
 const fs = require('fs');
-
-const Utils = require('./utils');
-
 const synaptic = require('synaptic');
-const Neuron = synaptic.Neuron,
-  Layer = synaptic.Layer,
-  Network = synaptic.Network,
-  Trainer = synaptic.Trainer,
-  Architect = synaptic.Architect;
 
-const features = require('../src/similarity-strategy');
+const SimilarityUtils = require('melinda-deduplication-common/similarity/utils');
 
-const INPUTS = features.length;
+const INPUTS = SimilarityUtils.DefaultStrategy.length;
 const OUTPUTS = 1;
 const LAYER_1 = Math.round(Math.sqrt((OUTPUTS+2)*INPUTS)) + Math.round(2 * Math.sqrt(INPUTS/(OUTPUTS+2)));
 const LAYER_2 = OUTPUTS * Math.round(Math.sqrt(INPUTS/(OUTPUTS+2)));
 
-var myPerceptron = new Architect.Perceptron(INPUTS, LAYER_1, LAYER_2, OUTPUTS);
-myPerceptron.layers.hidden.forEach(layer => {
-  layer.list.forEach(neuron => {
-    //neuron.squash = Neuron.squash.TANH; // Default is sigmoid
-  });
-});
+const model = new synaptic.Architect.Perceptron(INPUTS, LAYER_1, LAYER_2, OUTPUTS);
 
-var myTrainer = new Trainer(myPerceptron);
+const trainer = new synaptic.Trainer(model);
 const opts = {
   rate: [0.05, 0.03, 0.01, 0.005],
   iterations: 5000,
   error: .0135,
   shuffle: true,
   log: 100,
-  cost: Trainer.cost.MSE
+  cost: synaptic.Trainer.cost.MSE
 };
 
 const isParsedAlready = fs.existsSync('/tmp/parsed-training-data.json');
@@ -47,8 +33,8 @@ if (!isParsedAlready) {
       console.log(`${i}/${len}`);
     }
     
-    const featureVector = Utils.pairToFeatureVector(item.pair);
-    const input = Utils.featureVectorToInputVector(featureVector);
+    const featureVector = SimilarityUtils.pairToFeatureVector(item.pair);
+    const input = SimilarityUtils.featureVectorToInputVector(featureVector);
     
     const output = Array.of(item.label === 'positive' ? 1 : 0);
     
@@ -61,15 +47,9 @@ if (!isParsedAlready) {
   console.log('Loaded /tmp/parsed-training-data.json');
 }
 
-console.log(trainingSet[0]);
-
-const result = myTrainer.train(trainingSet, opts);
-
+const result = trainer.train(trainingSet, opts);
 console.log(result);
 
-var exported = myPerceptron.toJSON();
-
+const exported = model.toJSON();
 fs.writeFileSync('/tmp/percepton.json', JSON.stringify(exported), 'utf8');
 console.log('wrote /tmp/percepton.json');
-// var imported = Network.fromJSON(exported);
-

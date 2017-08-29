@@ -1,28 +1,27 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 const fs = require('fs');
-const Utils = require('./utils');
+
+const SimilarityUtils = require('melinda-deduplication-common/similarity/utils');
+const Types = SimilarityUtils.Types;
+const DuplicateClass = SimilarityUtils.DuplicateClass;
 
 const synaptic = require('synaptic');
-const Neuron = synaptic.Neuron,
-  Layer = synaptic.Layer,
-  Network = synaptic.Network;
+const Network = synaptic.Network;
 
 const SAMPLE = process.env.SAMPLE || false;
-
-const { DuplicateClass } = require('../src/record-similarity-service');
 
 const exported = JSON.parse(fs.readFileSync('/tmp/percepton.json', 'utf8'));
 console.log('loaded /tmp/percepton.json');
 var importedNetwork = Network.fromJSON(exported);
 
+const recordSet = process.argv[2] || 'data-sets/testSet.json';
 
-const Types = Utils.Types;
+console.log(`Validating model with ${recordSet}`);
 
 //const testSet = JSON.parse(fs.readFileSync('data-sets/trainingSet.json', 'utf8'));
 
-const testSet = JSON.parse(fs.readFileSync('data-sets/testSet.json', 'utf8'));
-
+const testSet = JSON.parse(fs.readFileSync(recordSet, 'utf8'));
 
 const shuffledSet = shuffle(testSet);
 
@@ -33,7 +32,7 @@ const probabilities = items.map((item, i) => {
   if (i%10 === 0) {
     console.log(`${i}/${len}`);
   }
-  const input = Utils.pairToInputVector(item.pair);
+  const input = SimilarityUtils.pairToInputVector(item.pair);
   const synapticProbability = importedNetwork.activate(input)[0];
 
   return Object.assign({}, item, { synapticProbability });
@@ -76,9 +75,9 @@ if (SAMPLE) {
   console.log(guesses);
 }
 
-guesses.forEach(guess => {
-  console.log(guess.label, guess.synapticProbability);
-});
+const labels = guesses.map(guess => `${guess.label} ${guess.synapticProbability}`);
+fs.writeFileSync('/tmp/guessLabels.txt', labels, 'utf8');
+console.log('wrote /tmp/guessLabels.txt');
 
 const correct = guesses.filter(item => {
   const guessLabel = getLabel(item);
