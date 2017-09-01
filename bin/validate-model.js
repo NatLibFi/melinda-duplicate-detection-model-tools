@@ -6,6 +6,8 @@ const SimilarityUtils = require('melinda-deduplication-common/similarity/utils')
 const Types = SimilarityUtils.Types;
 const DuplicateClass = SimilarityUtils.DuplicateClass;
 
+const RecordMergeCheck = require('melinda-deduplication-common/utils/record-merge-check');
+
 const synaptic = require('synaptic');
 const Network = synaptic.Network;
 
@@ -27,86 +29,101 @@ const shuffledSet = shuffle(testSet);
 
 const items = SAMPLE ? shuffledSet.slice(0,100) : shuffledSet;
 
-const len = items.length;
-const probabilities = items.map((item, i) => {
-  if (i%10 === 0) {
-    console.log(`${i}/${len}`);
-  }
-  const input = SimilarityUtils.pairToInputVector(item.pair);
-  const synapticProbability = importedNetwork.activate(input)[0];
+run().catch(error => console.error(error));
 
-  return Object.assign({}, item, { synapticProbability });
-});
+async function run() {
 
-const PROBABILITY_THRESHOLD = 0.75;
-
-const guesses = probabilities.map(item => {
-  let synapticLabel;
-  if (item.synapticProbability > PROBABILITY_THRESHOLD) {
-    synapticLabel = DuplicateClass.IS_DUPLICATE;
-  } else {
-    synapticLabel = DuplicateClass.NOT_DUPLICATE;
-  }
-
-  return Object.assign({}, item, { synapticLabel });
-}).map(item => {
-
-  let type;
-  const guessLabel = getLabel(item);
-  if (guessLabel === 'positive') {
-    if (item.label === 'positive') {
-      type = Types.TRUE_POSITIVE;
-    } else {
-      type = Types.FALSE_POSITIVE;
+  const len = items.length;
+  const probabilities = items.map((item, i) => {
+    if (i%10 === 0) {
+      console.log(`${i}/${len}`);
     }
+    const featureVector = SimilarityUtils.pairToFeatureVector(item.pair);
+    const input = SimilarityUtils.featureVectorToInputVector(featureVector);
+    const synapticProbability = importedNetwork.activate(input)[0];
+
+    return Object.assign({}, item, { synapticProbability, featureVector });
+  });
+
+  for (const item of probabilities) {
+    // in the trainingset the record1 is always the preferred record.
+    const mergeabilityClass = await RecordMergeCheck.checkMergeability(item.pair.record1, item.pair.record2);
+    item.mergeabilityClass = mergeabilityClass;
   }
-  if (guessLabel === 'negative') {
-    if (item.label === 'negative') {
-      type = Types.TRUE_NEGATIVE;
+
+  const PROBABILITY_THRESHOLD = 0.75;
+
+  const guesses = probabilities.map(item => {
+    let synapticLabel;
+    if (item.synapticProbability > PROBABILITY_THRESHOLD) {
+      synapticLabel = DuplicateClass.IS_DUPLICATE;
     } else {
-      type = Types.FALSE_NEGATIVE;
+      synapticLabel = DuplicateClass.NOT_DUPLICATE;
     }
+
+    return Object.assign({}, item, { synapticLabel });
+  }).map(item => {
+
+    let type;
+    const guessLabel = getLabel(item);
+    if (guessLabel === 'positive') {
+      if (item.label === 'positive') {
+        type = Types.TRUE_POSITIVE;
+      } else {
+        type = Types.FALSE_POSITIVE;
+      }
+    }
+    if (guessLabel === 'negative') {
+      if (item.label === 'negative') {
+        type = Types.TRUE_NEGATIVE;
+      } else {
+        type = Types.FALSE_NEGATIVE;
+      }
+    }
+
+    return Object.assign({}, item, { type });
+  }).filter(item => {
+    return item.mergeabilityClass === RecordMergeCheck.MergeabilityClass.AUTOMATICALLY_MERGEABLE;
+  });
+
+  if (SAMPLE) {
+    console.log(guesses);
   }
 
-  return Object.assign({}, item, { type });
-});
+  const labels = guesses.map(guess => `${guess.label} ${guess.synapticProbability}`);
+  fs.writeFileSync('/tmp/guessLabels.txt', labels, 'utf8');
+  console.log('wrote /tmp/guessLabels.txt');
 
-if (SAMPLE) {
-  console.log(guesses);
+  const correct = guesses.filter(item => {
+    const guessLabel = getLabel(item);
+    return guessLabel === item.label;
+  });
+
+  const cls = guesses.reduce((stats, item) => {
+    switch (item.type) {
+      case Types.TRUE_NEGATIVE: stats.tn++; break;
+      case Types.FALSE_NEGATIVE: stats.fn++; break;
+      case Types.TRUE_POSITIVE: stats.tp++; break;
+      case Types.FALSE_POSITIVE: stats.fp++; break;
+      default: throw new Error('unknown type');
+    }
+    return stats;
+  }, {tn: 0, tp:0, fn: 0, fp: 0});
+
+  const guessesWithCls = guesses.map((guess, i) => {
+    return Object.assign({}, guess, { cls: cls[i] });
+  });
+
+  fs.writeFileSync('/tmp/guesses.json', JSON.stringify(guessesWithCls), 'utf8');
+  console.log('wrote /tmp/guesses.json');
+
+  console.log(`Correct: ${correct.length}/${guesses.length} (Set size: ${items.length})`);
+  console.log(`True negatives: ${cls.tn}`);
+  console.log(`True positives: ${cls.tp}`);
+  console.log(`False negatives: ${cls.fn}`);
+  console.log(`False positives: ${cls.fp}`);
+
 }
-
-const labels = guesses.map(guess => `${guess.label} ${guess.synapticProbability}`);
-fs.writeFileSync('/tmp/guessLabels.txt', labels, 'utf8');
-console.log('wrote /tmp/guessLabels.txt');
-
-const correct = guesses.filter(item => {
-  const guessLabel = getLabel(item);
-  return guessLabel === item.label;
-});
-
-const cls = guesses.reduce((stats, item) => {
-  switch (item.type) {
-    case Types.TRUE_NEGATIVE: stats.tn++; break;
-    case Types.FALSE_NEGATIVE: stats.fn++; break;
-    case Types.TRUE_POSITIVE: stats.tp++; break;
-    case Types.FALSE_POSITIVE: stats.fp++; break;
-    default: throw new Error('unknown type');
-  }
-  return stats;
-}, {tn: 0, tp:0, fn: 0, fp: 0});
-
-const guessesWithCls = guesses.map((guess, i) => {
-  return Object.assign({}, guess, { cls: cls[i] });
-});
-
-fs.writeFileSync('/tmp/guesses.json', JSON.stringify(guessesWithCls), 'utf8');
-console.log('wrote /tmp/guesses.json');
-
-console.log(`Correct: ${correct.length}/${guesses.length}`);
-console.log(`True negatives: ${cls.tn}`);
-console.log(`True positives: ${cls.tp}`);
-console.log(`False negatives: ${cls.fn}`);
-console.log(`False positives: ${cls.fp}`);
 
 function shuffle(array) {
   let currentIndex = array.length, temporaryValue, randomIndex;

@@ -20,9 +20,11 @@ items.forEach(item => {
 function readableMeta(item) {
   const humanLabel = item.label === 'negative' ? 'NOT_DUPLICATE' : 'IS_DUPLICATE';
   const mlpLabel = item.synapticLabel;
+  console.log(item);
+  return '';
   const features = item.probability.result.featureVector;
   const featureList = Object.keys(features).map(key => `${key}: ${features[key]}`).map(str => '    ' + str).join('\n');
-  
+    
   return `
   humanLabel: ${humanLabel}
   computerLabel: ${mlpLabel}

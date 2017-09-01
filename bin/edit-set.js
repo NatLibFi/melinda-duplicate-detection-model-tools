@@ -5,9 +5,9 @@ const _ = require('lodash');
 const AVAILABLE_COMMANDS = ['remove', 'count'];
 
 try {
-  const { command, pair } = readArguments(process.argv);
+  const { command, pairs } = readArguments(process.argv);
 
-  run(command, pair).catch(error => {
+  run(command, pairs).catch(error => {
     console.error(error);
   });
   
@@ -16,28 +16,30 @@ try {
   process.exit(1);
 }
 
-async function run(command, pair) {
+async function run(command, pairs) {
 
   const recordSetData = await readStdin();
 
   const recordSet = JSON.parse(recordSetData);
 
-  const transformedSet = transformSet(recordSet, command, pair);
+  const transformedSet = transformSet(recordSet, command, pairs);
   
   console.log(JSON.stringify(transformedSet));
 
 }
 
-function transformSet(recordSet, command, pair) {
+function transformSet(recordSet, command, pairs) {
+
   if (command === 'remove') {
+    const pairKeys = pairs.map(pairToKey);
+    console.error(pairKeys);
     return recordSet.filter(item => {
       const id1 = getRecordId(item.pair.record1);
       const id2 = getRecordId(item.pair.record2);
-      
-      const pairAsNumbers = pair.map(i => parseInt(i));
-      const idsAsNumbers = [id1, id2].map(i => parseInt(i));
 
-      return !(isSame(pairAsNumbers, idsAsNumbers));
+      const key = pairToKey([id1, id2]);
+
+      return !pairKeys.includes(key);
     });
   }
   if (command === 'count') {
@@ -45,6 +47,13 @@ function transformSet(recordSet, command, pair) {
     process.exit(0);
   }
   throw new Error(`Command ${command} not implemented.`);
+}
+
+function pairToKey(pair) {
+  const id1num = parseInt(pair[0]);
+  const id2num = parseInt(pair[1]);
+
+  return [id1num, id2num].sort().join('-');
 }
 
 function isSame(pair1, pair2) {
@@ -65,15 +74,27 @@ function getRecordId(record) {
 function readArguments(argv) {
 
   const command = argv[2];
-  const pair = [argv[3], argv[4]];
+  const pairs = process.argv.slice(3).map(parsePairArgument);
   
   if (!AVAILABLE_COMMANDS.includes(command)) {
     throw new Error(`Unknown command: ${command}`);
   }
-  if (isNaN(pair[0]) || isNaN(pair[1])) {
-    throw new Error(`Record ids must be numbers: ${pair[0]} ${pair[1]}`);
+  
+  return { command, pairs };
+}
+
+function parsePairArgument(pairString) {
+  if (!pairString.includes('-')) {
+    throw new Error(`Invalid pair: ${pairString}`);
   }
-  return { command, pair };
+  const pair = pairString.split('-');
+
+  pair.forEach(id => {
+    if (isNaN(id)) {
+      throw new Error(`Invalid id: ${id}`);
+    }
+  });
+  return pair;
 }
 
 async function readStdin() {
