@@ -4,7 +4,7 @@ const items = JSON.parse(fs.readFileSync('./falsePositives.json'));
 const MarcRecord = require('marc-record-js');
 const execSync = require('child_process').execSync;
 
-items.forEach(item => {
+items.forEach((item, i) => {
   const pair = item.pair;
 
   const record1 = MarcRecord.clone(pair.record1);
@@ -13,22 +13,22 @@ items.forEach(item => {
   fs.writeFileSync('/tmp/rec1', record1.toString());
   fs.writeFileSync('/tmp/rec2', record2.toString());
 
+  console.log(`Item ${i+1}/${items.length}`);
   console.log(readableMeta(item));
-  code = execSync('/usr/bin/meld /tmp/rec1 /tmp/rec2');
+  execSync('/usr/bin/meld /tmp/rec1 /tmp/rec2');
 });
 
 function readableMeta(item) {
   const humanLabel = item.label === 'negative' ? 'NOT_DUPLICATE' : 'IS_DUPLICATE';
   const mlpLabel = item.synapticLabel;
-  console.log(item);
-  return '';
-  const features = item.probability.result.featureVector;
+ 
+  const features = item.featureVector;
   const featureList = Object.keys(features).map(key => `${key}: ${features[key]}`).map(str => '    ' + str).join('\n');
     
   return `
   humanLabel: ${humanLabel}
   computerLabel: ${mlpLabel}
-  numericProbability: ${item.probability.numeric}
+  numericProbability: ${item.synapticProbability}
   features: 
 ${featureList}
   `;

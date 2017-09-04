@@ -1,3 +1,7 @@
 build
 node_modules
 data-sets
+falsePositives.json
+training-plot.png
+table.txt
+training.txt

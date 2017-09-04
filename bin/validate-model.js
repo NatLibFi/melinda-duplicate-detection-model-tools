@@ -27,7 +27,7 @@ const testSet = JSON.parse(fs.readFileSync(recordSet, 'utf8'));
 
 const shuffledSet = shuffle(testSet);
 
-const items = SAMPLE ? shuffledSet.slice(0,100) : shuffledSet;
+const items = SAMPLE ? shuffledSet.slice(0,10) : shuffledSet;
 
 run().catch(error => console.error(error));
 
@@ -47,8 +47,16 @@ async function run() {
 
   for (const item of probabilities) {
     // in the trainingset the record1 is always the preferred record.
-    const mergeabilityClass = await RecordMergeCheck.checkMergeability(item.pair.record1, item.pair.record2);
-    item.mergeabilityClass = mergeabilityClass;
+    try {
+      
+      const mergeabilityClass = await RecordMergeCheck.checkMergeability(item.pair.record1, item.pair.record2);
+    
+      item.mergeabilityClass = mergeabilityClass;
+      
+    } catch(error) {
+      console.error(error);
+      process.exit(1);
+    }
   }
 
   const PROBABILITY_THRESHOLD = 0.75;
@@ -87,7 +95,7 @@ async function run() {
   });
 
   if (SAMPLE) {
-    console.log(guesses);
+    //console.log(guesses);
   }
 
   const labels = guesses.map(guess => `${guess.label} ${guess.synapticProbability}`);
@@ -117,7 +125,8 @@ async function run() {
   fs.writeFileSync('/tmp/guesses.json', JSON.stringify(guessesWithCls), 'utf8');
   console.log('wrote /tmp/guesses.json');
 
-  console.log(`Correct: ${correct.length}/${guesses.length} (Set size: ${items.length})`);
+  const correctPercentage = Math.round(correct.length/guesses.length*1000)/1000 * 100;
+  console.log(`Correct: ${correct.length}/${guesses.length} =${correctPercentage}% (Set size: ${items.length})`);
   console.log(`True negatives: ${cls.tn}`);
   console.log(`True positives: ${cls.tp}`);
   console.log(`False negatives: ${cls.fn}`);

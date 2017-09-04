@@ -14,11 +14,11 @@ const model = new synaptic.Architect.Perceptron(INPUTS, LAYER_1, LAYER_2, OUTPUT
 
 const trainer = new synaptic.Trainer(model);
 const opts = {
-  rate: [0.05, 0.03, 0.01, 0.005],
-  iterations: 5000,
-  error: .0135,
+  rate: [0.03, 0.01, 0.005],
+  iterations: 20000,
+  error: .01,
   shuffle: true,
-  log: 100,
+  log: 10,
   cost: synaptic.Trainer.cost.MSE
 };
 
