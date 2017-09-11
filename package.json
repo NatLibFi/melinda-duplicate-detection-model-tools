@@ -8,7 +8,7 @@
     "test:unit": "BABEL_ENV=test mocha --compilers js:babel-core/register \"melinda-deduplication-common/{,!(node_modules)/**/}*.spec.js\"",
     "test:watch": "npm run test:unit -- -w",
     "flow": "flow",
-    "train-model": "babel-node bin/train-model",
+    "train-model": "babel-node bin/train-model | tee training.txt",
     "test-model": "babel-node bin/validate-model",
     "test-model-trainingset": "babel-node bin/validate-model data-sets/trainingSet.json",
     "cross-validate-model": "babel-node bin/validate-model data-sets/crossValidationSet.json",
