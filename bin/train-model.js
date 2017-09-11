@@ -5,7 +5,8 @@ const synaptic = require('synaptic');
 
 const SimilarityUtils = require('melinda-deduplication-common/similarity/utils');
 
-const INPUTS = SimilarityUtils.DefaultStrategy.length;
+const featuresFromCompositeExtractors = 8; // Extractor F008
+const INPUTS = SimilarityUtils.DefaultStrategy.length + featuresFromCompositeExtractors;
 const OUTPUTS = 1;
 const LAYER_1 = Math.round(Math.sqrt((OUTPUTS+2)*INPUTS)) + Math.round(2 * Math.sqrt(INPUTS/(OUTPUTS+2)));
 const LAYER_2 = OUTPUTS * Math.round(Math.sqrt(INPUTS/(OUTPUTS+2)));
@@ -26,6 +27,7 @@ const isParsedAlready = fs.existsSync('/tmp/parsed-training-data.json');
 let trainingSet;
 
 if (!isParsedAlready) {
+  console.log('Parsing data-sets/trainingSet.json');
   const trainingSetData = JSON.parse(fs.readFileSync('data-sets/trainingSet.json', 'utf8'));
   const len = trainingSetData.length;
   trainingSet = trainingSetData.map((item, i) => {
