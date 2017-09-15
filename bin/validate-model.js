@@ -6,7 +6,7 @@ const SimilarityUtils = require('melinda-deduplication-common/similarity/utils')
 const Types = SimilarityUtils.Types;
 const DuplicateClass = SimilarityUtils.DuplicateClass;
 
-const RecordMergeCheck = require('melinda-deduplication-common/utils/record-merge-check');
+const MergeValidation = require('melinda-deduplication-common/marc-record-merge-utils/marc-record-merge-validate-service');
 
 const synaptic = require('synaptic');
 const Network = synaptic.Network;
@@ -47,15 +47,19 @@ async function run() {
 
   for (const item of probabilities) {
     // in the trainingset the record1 is always the preferred record.
-    try {
-      
-      const mergeabilityClass = await RecordMergeCheck.checkMergeability(item.pair.record1, item.pair.record2);
+
     
-      item.mergeabilityClass = mergeabilityClass;
-      
-    } catch(error) {
-      console.error(error);
-      process.exit(1);
+    const hasNegativeFeature = item.featureVector.some(feature => feature === -1);
+    
+    if (hasNegativeFeature) {
+      item.automerge_possible = false;
+    } else {   
+      try {
+        await MergeValidation.validateMergeCandidates(MergeValidation.preset.melinda_host_automerge, item.pair.record1, item.pair.record2);
+        item.automerge_possible = true;
+      } catch(error) {
+        item.automerge_possible = false;
+      }
     }
   }
 
@@ -90,9 +94,9 @@ async function run() {
     }
 
     return Object.assign({}, item, { type });
-  }).filter(item => {
-    return item.mergeabilityClass === RecordMergeCheck.MergeabilityClass.AUTOMATICALLY_MERGEABLE;
-  });
+
+  }).filter(item => item.automerge_possible);
+    
 
   if (SAMPLE) {
     //console.log(guesses);

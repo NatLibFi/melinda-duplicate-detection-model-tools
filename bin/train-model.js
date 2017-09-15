@@ -16,7 +16,7 @@ const model = new synaptic.Architect.Perceptron(INPUTS, LAYER_1, LAYER_2, OUTPUT
 const trainer = new synaptic.Trainer(model);
 const opts = {
   rate: [0.03, 0.01, 0.005],
-  iterations: 20000,
+  iterations: 9000,
   error: .01,
   shuffle: true,
   log: 10,
@@ -40,7 +40,7 @@ if (!isParsedAlready) {
     
     const output = Array.of(item.label === 'positive' ? 1 : 0);
     
-    return { input, output, _featureVector: featureVector };
+    return { input, output, _featureVector: featureVector, pair: item.pair };
   });
   fs.writeFileSync('/tmp/parsed-training-data.json', JSON.stringify(trainingSet), 'utf8');
   console.log('Wrote /tmp/parsed-training-data.json');
@@ -49,7 +49,11 @@ if (!isParsedAlready) {
   console.log('Loaded /tmp/parsed-training-data.json');
 }
 
-const result = trainer.train(trainingSet, opts);
+const filteredTrainingSet = trainingSet.filter(item => {
+  return item.input.every(val => val !== -1);
+});
+
+const result = trainer.train(filteredTrainingSet, opts);
 console.log(result);
 
 const exported = model.toJSON();
