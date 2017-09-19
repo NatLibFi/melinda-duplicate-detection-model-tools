@@ -3,6 +3,8 @@
 const fs = require('fs');
 const synaptic = require('synaptic');
 
+const _ = require('lodash');
+
 const SimilarityUtils = require('melinda-deduplication-common/similarity/utils');
 
 const featuresFromCompositeExtractors = 8; // Extractor F008
@@ -30,17 +32,25 @@ if (!isParsedAlready) {
   console.log('Parsing data-sets/trainingSet.json');
   const trainingSetData = JSON.parse(fs.readFileSync('data-sets/trainingSet.json', 'utf8'));
   const len = trainingSetData.length;
-  trainingSet = trainingSetData.map((item, i) => {
+  trainingSet = _.flatMap(trainingSetData, (item, i) => {
     if (i%10 === 0) {
       console.log(`${i}/${len}`);
     }
     
-    const featureVector = SimilarityUtils.pairToFeatureVector(item.pair);
-    const input = SimilarityUtils.featureVectorToInputVector(featureVector);
-    
-    const output = Array.of(item.label === 'positive' ? 1 : 0);
-    
-    return { input, output, _featureVector: featureVector, pair: item.pair };
+    const { featureVector, input, output } = createVectors(item.label, item.pair);
+
+    // set record1 as both sides of the check
+    const identityItem = createVectors('positive', {record1: item.pair.record1, record2: item.pair.record1}); 
+
+    return [
+      { input, output, _featureVector: featureVector, pair: item.pair },
+      { 
+        input: identityItem.input,
+        output: identityItem.output,
+        _featureVector: identityItem.featureVector,
+        pair: {record1: item.pair.record1, record2: item.pair.record1}
+      }
+    ];
   });
   fs.writeFileSync('/tmp/parsed-training-data.json', JSON.stringify(trainingSet), 'utf8');
   console.log('Wrote /tmp/parsed-training-data.json');
@@ -57,5 +67,15 @@ const result = trainer.train(filteredTrainingSet, opts);
 console.log(result);
 
 const exported = model.toJSON();
-fs.writeFileSync('/tmp/percepton.json', JSON.stringify(exported), 'utf8');
-console.log('wrote /tmp/percepton.json');
+fs.writeFileSync('/tmp/duplicate-perceptron.json', JSON.stringify(exported), 'utf8');
+console.log('wrote /tmp/duplicate-perceptron.json');
+
+
+function createVectors(label, pair) {
+
+  const featureVector = SimilarityUtils.pairToFeatureVector(pair);
+  const input = SimilarityUtils.featureVectorToInputVector(featureVector);
+  const output = Array.of(label === 'positive' ? 1 : 0);
+
+  return {featureVector, input, output };
+}
