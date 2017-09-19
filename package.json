@@ -13,7 +13,8 @@
     "test-model-trainingset": "babel-node bin/validate-model data-sets/trainingSet.json",
     "cross-validate-model": "babel-node bin/validate-model data-sets/crossValidationSet.json",
     "extract-false-positives": "babel-node bin/extract-false-positives.js",
-    "display-false-positives": "babel-node bin/display-items.js"
+    "display-false-positives": "babel-node bin/display-items.js",
+    "pump-duplicates": "babel-node bin/pump-duplicates-from-queue.js"
   },
   "author": "Pasi Tuominen <pasi.tuominen@gmail.com>",
   "license": "ISC",
@@ -37,6 +38,7 @@
     "sinon": "^3.2.1"
   },
   "dependencies": {
+    "amqplib": "^0.5.1",
     "debug": "^2.6.8",
     "lodash": "^4.17.4",
     "synaptic": "1.0.12"
