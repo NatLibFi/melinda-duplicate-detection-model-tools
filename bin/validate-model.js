@@ -13,8 +13,8 @@ const Network = synaptic.Network;
 
 const SAMPLE = process.env.SAMPLE || false;
 
-const exported = JSON.parse(fs.readFileSync('/tmp/percepton.json', 'utf8'));
-console.log('loaded /tmp/percepton.json');
+const exported = JSON.parse(fs.readFileSync('/tmp/duplicate-perceptron.json', 'utf8'));
+console.log('loaded /tmp/duplicate-perceptron.json');
 var importedNetwork = Network.fromJSON(exported);
 
 const recordSet = process.argv[2] || 'data-sets/testSet.json';
@@ -49,7 +49,7 @@ async function run() {
     // in the trainingset the record1 is always the preferred record.
 
     
-    const hasNegativeFeature = item.featureVector.some(feature => feature === -1);
+    const hasNegativeFeature = Object.keys(item.featureVector).map(key => item.featureVector[key]).some(feature => feature === -1);
     
     if (hasNegativeFeature) {
       item.automerge_possible = false;
