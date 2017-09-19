@@ -1,8 +1,9 @@
 /* eslint-disable no-console */
 
 const _ = require('lodash');
+const MarcRecord = require('marc-record-js');
 
-const AVAILABLE_COMMANDS = ['remove', 'count'];
+const AVAILABLE_COMMANDS = ['remove', 'count', 'tostring', 'fromstring', 'labels'];
 
 try {
   const { command, pairs } = readArguments(process.argv);
@@ -20,12 +21,21 @@ async function run(command, pairs) {
 
   const recordSetData = await readStdin();
 
-  const recordSet = JSON.parse(recordSetData);
+
+  let recordSet;
+  try {
+    recordSet = JSON.parse(recordSetData);
+  } catch(e) {
+    recordSet = recordSetData;
+  }
 
   const transformedSet = transformSet(recordSet, command, pairs);
+  if (_.isObject(transformedSet)) {
+    console.log(JSON.stringify(transformedSet));
+  } else {
+    console.log(transformedSet);
+  }
   
-  console.log(JSON.stringify(transformedSet));
-
 }
 
 function transformSet(recordSet, command, pairs) {
@@ -43,9 +53,43 @@ function transformSet(recordSet, command, pairs) {
     });
   }
   if (command === 'count') {
-    console.log(recordSet.length);
-    process.exit(0);
+    return recordSet.length;
   }
+
+  if (command === 'tostring') {
+
+    return recordSet.map(item => {
+      
+      const record1 = new MarcRecord(item.pair.record1).toString();
+      const record2 = new MarcRecord(item.pair.record2).toString();
+
+      return `LABEL: ${item.label}\n\n${record1}\n\n${record2}`;
+    }).join('\n\n\n');
+  }
+  if (command === 'fromstring') {
+    return recordSet.split('\n\n\n').map(itemStr => {
+      const [labelLine, record1Str, record2Str] = itemStr.split('\n\n');
+      const label = labelLine.substr(7);
+      const record1 = MarcRecord.fromString(record1Str.trim());
+      const record2 = MarcRecord.fromString(record2Str.trim());
+      return {
+        label,
+        pair: { record1, record2 }
+      };
+    });
+  }
+
+  if (command === 'labels') {
+
+    return recordSet.map(item => {
+      
+      const id1 = getRecordId(item.pair.record1);
+      const id2 = getRecordId(item.pair.record2);
+
+      return `${item.label}\t${id1}\t${id2}`;
+    }).join('\n');
+  }
+
   throw new Error(`Command ${command} not implemented.`);
 }
 
