@@ -48,7 +48,6 @@ async function run() {
   for (const item of probabilities) {
     // in the trainingset the record1 is always the preferred record.
 
-    
     const hasNegativeFeature = Object.keys(item.featureVector).map(key => item.featureVector[key]).some(feature => feature === -1);
     
     if (hasNegativeFeature) {

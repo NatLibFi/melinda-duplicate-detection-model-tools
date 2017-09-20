@@ -13,11 +13,13 @@ const OUTPUTS = 1;
 const LAYER_1 = Math.round(Math.sqrt((OUTPUTS+2)*INPUTS)) + Math.round(2 * Math.sqrt(INPUTS/(OUTPUTS+2)));
 const LAYER_2 = OUTPUTS * Math.round(Math.sqrt(INPUTS/(OUTPUTS+2)));
 
-const model = new synaptic.Architect.Perceptron(INPUTS, LAYER_1, LAYER_2, OUTPUTS);
+const architecture = [INPUTS, INPUTS/4*3, INPUTS/4*2, INPUTS/4*1, OUTPUTS].map(Math.round);
+console.log('Architecture: ' , architecture);
+const model = new synaptic.Architect.Perceptron(...architecture);
 
 const trainer = new synaptic.Trainer(model);
 const opts = {
-  rate: [0.03, 0.01, 0.005],
+  rate: [0.03, 0.01, 0.005, 0.001, 0.0005],
   iterations: 9000,
   error: .01,
   shuffle: true,
