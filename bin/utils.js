@@ -1,3 +1,5 @@
+const fs = require('fs');
+const MarcRecord = require('marc-record-js');
 
 function readLinesFromStdin(lineHandler, done) {
   let data = '';
@@ -192,8 +194,30 @@ function removeDiacritics(str) {
   return newStr;
 }
 
+
+function readRecordSet(filename) {
+  const raw = fs.readFileSync(filename, 'utf8');
+  const trainingSetData = raw.split('\n\n\n').filter(str => str.length > 10).map(itemStr => {
+    try {
+      const [labelLine, record1Str, record2Str] = itemStr.split('\n\n');
+      const label = labelLine.substr(7);
+      const record1 = MarcRecord.fromString(record1Str.trim());
+      const record2 = MarcRecord.fromString(record2Str.trim());
+      return {
+        label,
+        pair: { record1, record2 }
+      };
+    } catch(error) {
+      console.log(itemStr);
+      throw error;
+    }
+  });
+  return trainingSetData;
+}
+
 module.exports = {
   readLinesFromStdin,
   tail, nfc, upperCase, trim, collapse, toSpace, delChars,
-  removeDiacritics
+  removeDiacritics,
+  readRecordSet
 };

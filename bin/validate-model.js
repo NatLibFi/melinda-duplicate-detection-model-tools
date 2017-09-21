@@ -2,6 +2,8 @@
 /* eslint-disable no-console */
 const fs = require('fs');
 
+const LocalUtils = require('./utils');
+
 const SimilarityUtils = require('melinda-deduplication-common/similarity/utils');
 const Types = SimilarityUtils.Types;
 const DuplicateClass = SimilarityUtils.DuplicateClass;
@@ -17,13 +19,11 @@ const exported = JSON.parse(fs.readFileSync('/tmp/duplicate-perceptron.json', 'u
 console.log('loaded /tmp/duplicate-perceptron.json');
 var importedNetwork = Network.fromJSON(exported);
 
-const recordSet = process.argv[2] || 'data-sets/testSet.json';
+const recordSetFile = process.argv[2] || 'data-sets/testSet';
 
-console.log(`Validating model with ${recordSet}`);
+console.log(`Validating model with ${recordSetFile}`);
 
-//const testSet = JSON.parse(fs.readFileSync('data-sets/trainingSet.json', 'utf8'));
-
-const testSet = JSON.parse(fs.readFileSync(recordSet, 'utf8'));
+const testSet = LocalUtils.readRecordSet(recordSetFile);
 
 const shuffledSet = shuffle(testSet);
 
@@ -62,41 +62,12 @@ async function run() {
     }
   }
 
-  const PROBABILITY_THRESHOLD = 0.75;
-
-  const guesses = probabilities.map(item => {
-    let synapticLabel;
-    if (item.synapticProbability > PROBABILITY_THRESHOLD) {
-      synapticLabel = DuplicateClass.IS_DUPLICATE;
-    } else {
-      synapticLabel = DuplicateClass.NOT_DUPLICATE;
-    }
-
-    return Object.assign({}, item, { synapticLabel });
-  }).map(item => {
-
-    let type;
-    const guessLabel = getLabel(item);
-    if (guessLabel === 'positive') {
-      if (item.label === 'positive') {
-        type = Types.TRUE_POSITIVE;
-      } else {
-        type = Types.FALSE_POSITIVE;
-      }
-    }
-    if (guessLabel === 'negative') {
-      if (item.label === 'negative') {
-        type = Types.TRUE_NEGATIVE;
-      } else {
-        type = Types.FALSE_NEGATIVE;
-      }
-    }
-
-    return Object.assign({}, item, { type });
-
-  }).filter(item => item.automerge_possible);
-    
-
+ 
+  const guesses = probabilities
+    .map(addSynapticLabel)
+    .map(addTypeLabel)
+    .filter(item => item.automerge_possible);
+  
   if (SAMPLE) {
     //console.log(guesses);
   }
@@ -136,6 +107,43 @@ async function run() {
   console.log(`False positives: ${cls.fp}`);
 
 }
+
+const PROBABILITY_THRESHOLD = 0.75;
+
+function addSynapticLabel(item) {
+  let synapticLabel;
+  if (item.synapticProbability > PROBABILITY_THRESHOLD) {
+    synapticLabel = DuplicateClass.IS_DUPLICATE;
+  } else {
+    synapticLabel = DuplicateClass.NOT_DUPLICATE;
+  }
+
+  return Object.assign({}, item, { synapticLabel });
+}
+
+function addTypeLabel(item) {
+
+  let type;
+  const guessLabel = getLabel(item);
+  if (guessLabel === 'positive') {
+    if (item.label === 'positive') {
+      type = Types.TRUE_POSITIVE;
+    } else {
+      type = Types.FALSE_POSITIVE;
+    }
+  }
+  if (guessLabel === 'negative') {
+    if (item.label === 'negative') {
+      type = Types.TRUE_NEGATIVE;
+    } else {
+      type = Types.FALSE_NEGATIVE;
+    }
+  }
+
+  return Object.assign({}, item, { type });
+
+}
+
 
 function shuffle(array) {
   let currentIndex = array.length, temporaryValue, randomIndex;

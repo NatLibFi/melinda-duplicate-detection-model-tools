@@ -1,5 +1,6 @@
 /* eslint-disable no-console */
 
+const readline = require('readline');
 const fs = require('fs');
 const synaptic = require('synaptic');
 
@@ -7,13 +8,15 @@ const _ = require('lodash');
 
 const SimilarityUtils = require('melinda-deduplication-common/similarity/utils');
 
+const trainingSetFile = '/tmp/parsed-training-data';
+
 const featuresFromCompositeExtractors = 8; // Extractor F008
 const INPUTS = SimilarityUtils.DefaultStrategy.length + featuresFromCompositeExtractors;
 const OUTPUTS = 1;
 const LAYER_1 = Math.round(Math.sqrt((OUTPUTS+2)*INPUTS)) + Math.round(2 * Math.sqrt(INPUTS/(OUTPUTS+2)));
 const LAYER_2 = OUTPUTS * Math.round(Math.sqrt(INPUTS/(OUTPUTS+2)));
 
-const architecture = [INPUTS, INPUTS/4*3, INPUTS/4*2, INPUTS/4*1, OUTPUTS].map(Math.round);
+const architecture = [INPUTS, INPUTS/4*2, OUTPUTS].map(Math.round);
 console.log('Architecture: ' , architecture);
 const model = new synaptic.Architect.Perceptron(...architecture);
 
@@ -27,57 +30,53 @@ const opts = {
   cost: synaptic.Trainer.cost.MSE
 };
 
-const isParsedAlready = fs.existsSync('/tmp/parsed-training-data.json');
-let trainingSet;
 
-if (!isParsedAlready) {
-  console.log('Parsing data-sets/trainingSet.json');
-  const trainingSetData = JSON.parse(fs.readFileSync('data-sets/trainingSet.json', 'utf8'));
-  const len = trainingSetData.length;
-  trainingSet = _.flatMap(trainingSetData, (item, i) => {
-    if (i%10 === 0) {
-      console.log(`${i}/${len}`);
-    }
-    
-    const { featureVector, input, output } = createVectors(item.label, item.pair);
+run().catch(e => console.error(e));
 
-    // set record1 as both sides of the check
-    const identityItem = createVectors('positive', {record1: item.pair.record1, record2: item.pair.record1}); 
+async function run() {
+  console.log(`Loading training set from ${trainingSetFile}`);
+  const trainingSet = await readTrainingSet();
+  console.log('Training set loaded');
 
-    return [
-      { input, output, _featureVector: featureVector, pair: item.pair },
-      { 
-        input: identityItem.input,
-        output: identityItem.output,
-        _featureVector: identityItem.featureVector,
-        pair: {record1: item.pair.record1, record2: item.pair.record1}
-      }
-    ];
+  const filteredTrainingSet = trainingSet.filter(item => {
+    return item.input.every(val => val !== -1);
   });
-  fs.writeFileSync('/tmp/parsed-training-data.json', JSON.stringify(trainingSet), 'utf8');
-  console.log('Wrote /tmp/parsed-training-data.json');
-} else {
-  trainingSet = JSON.parse(fs.readFileSync('/tmp/parsed-training-data.json', 'utf8'));
-  console.log('Loaded /tmp/parsed-training-data.json');
+
+  const result = trainer.train(filteredTrainingSet, opts);
+  console.log(result);
+
+  const exported = model.toJSON();
+  fs.writeFileSync('/tmp/duplicate-perceptron.json', JSON.stringify(exported), 'utf8');
+  console.log('wrote /tmp/duplicate-perceptron.json');
 }
 
-const filteredTrainingSet = trainingSet.filter(item => {
-  return item.input.every(val => val !== -1);
-});
-
-const result = trainer.train(filteredTrainingSet, opts);
-console.log(result);
-
-const exported = model.toJSON();
-fs.writeFileSync('/tmp/duplicate-perceptron.json', JSON.stringify(exported), 'utf8');
-console.log('wrote /tmp/duplicate-perceptron.json');
 
 
-function createVectors(label, pair) {
+function readTrainingSet() {
+  return new Promise(resolve => {
 
-  const featureVector = SimilarityUtils.pairToFeatureVector(pair);
-  const input = SimilarityUtils.featureVectorToInputVector(featureVector);
-  const output = Array.of(label === 'positive' ? 1 : 0);
+    const trainingSet = [];
+    let count = 0;
 
-  return {featureVector, input, output };
+    const rl = readline.createInterface({
+      input: fs.createReadStream(trainingSetFile)
+    });
+
+    rl.on('line', function (line) {
+     
+      if (count % 100 === 0) {
+        console.log(count);
+      }
+
+      if (line.startsWith('{')) {
+        const parsed = JSON.parse(line);  
+        trainingSet.push(parsed);
+        count++;
+      } else {
+        console.log('Skipped line:', line);
+      }
+    });
+
+    rl.on('close', () => resolve(trainingSet));
+  });
 }
