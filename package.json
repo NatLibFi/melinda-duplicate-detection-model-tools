@@ -8,13 +8,14 @@
     "test:unit": "BABEL_ENV=test mocha --compilers js:babel-core/register \"melinda-deduplication-common/{,!(node_modules)/**/}*.spec.js\"",
     "test:watch": "npm run test:unit -- -w",
     "flow": "flow",
+    "generate-feature-vectors": "babel-node bin/extract-features.js",
     "train-model": "babel-node bin/train-model > training.txt &",
     "test-model": "babel-node bin/validate-model",
-    "test-model-trainingset": "babel-node bin/validate-model data-sets/trainingSet.json",
-    "cross-validate-model": "babel-node bin/validate-model data-sets/crossValidationSet.json",
+    "test-model-trainingset": "babel-node bin/validate-model data-sets/trainingSet",
+    "cross-validate-model": "babel-node bin/validate-model data-sets/crossValidationSet",
     "extract-false-positives": "babel-node bin/extract-false-positives.js",
     "display-false-positives": "babel-node bin/display-items.js",
-    "pump-duplicates": "babel-node bin/pump-duplicates-from-queue.js"
+    "pump-duplicates": "babel-node bin/pump-duplicates-from-queue.js | tee -a pumped-duplicates.txt"
   },
   "author": "Pasi Tuominen <pasi.tuominen@gmail.com>",
   "license": "ISC",
@@ -32,7 +33,7 @@
     "eslint-import-resolver-babel-module": "^3.0.0",
     "eslint-plugin-flowtype": "^2.35.1",
     "eslint-plugin-import": "^2.6.0",
-    "flow-bin": "^0.53.0",
+    "flow-bin": "^0.54.1",
     "mocha": "^3.5.0",
     "nodemon": "^1.11.0",
     "sinon": "^3.2.1"
@@ -41,6 +42,7 @@
     "amqplib": "^0.5.1",
     "debug": "^2.6.8",
     "lodash": "^4.17.4",
+    "marc-record-js": "^0.3.2",
     "synaptic": "1.0.12"
   }
 }
