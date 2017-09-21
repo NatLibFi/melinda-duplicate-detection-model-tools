@@ -15,6 +15,7 @@
     "cross-validate-model": "babel-node bin/validate-model data-sets/crossValidationSet",
     "extract-false-positives": "babel-node bin/extract-false-positives.js",
     "display-false-positives": "babel-node bin/display-items.js",
+    "display-set": "babel-node bin/display-set.js",
     "pump-duplicates": "babel-node bin/pump-duplicates-from-queue.js | tee -a pumped-duplicates.txt"
   },
   "author": "Pasi Tuominen <pasi.tuominen@gmail.com>",
