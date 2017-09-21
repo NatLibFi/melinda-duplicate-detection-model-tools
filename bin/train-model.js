@@ -10,7 +10,7 @@ const SimilarityUtils = require('melinda-deduplication-common/similarity/utils')
 
 const trainingSetFile = '/tmp/parsed-training-data';
 
-const featuresFromCompositeExtractors = 8 + 6; // Extractor F008 = 9-1. format=7-1
+const featuresFromCompositeExtractors = 8 + 6 + 1; // Extractor F008 = 9-1. format=7-1, F337_F338=2-1
 const INPUTS = SimilarityUtils.DefaultStrategy.length + featuresFromCompositeExtractors;
 const OUTPUTS = 1;
 const LAYER_1 = Math.round(Math.sqrt((OUTPUTS+2)*INPUTS)) + Math.round(2 * Math.sqrt(INPUTS/(OUTPUTS+2)));
