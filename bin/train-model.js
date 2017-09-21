@@ -3,25 +3,11 @@
 const readline = require('readline');
 const fs = require('fs');
 const synaptic = require('synaptic');
-
 const _ = require('lodash');
-
-const SimilarityUtils = require('melinda-deduplication-common/similarity/utils');
 
 const trainingSetFile = '/tmp/parsed-training-data';
 
-const featuresFromCompositeExtractors = 8 + 6 + 1; // Extractor F008 = 9-1. format=7-1, F337_F338=2-1
-const INPUTS = SimilarityUtils.DefaultStrategy.length + featuresFromCompositeExtractors;
-const OUTPUTS = 1;
-const LAYER_1 = Math.round(Math.sqrt((OUTPUTS+2)*INPUTS)) + Math.round(2 * Math.sqrt(INPUTS/(OUTPUTS+2)));
-const LAYER_2 = OUTPUTS * Math.round(Math.sqrt(INPUTS/(OUTPUTS+2)));
-
-const architecture = [INPUTS, INPUTS/4*2, OUTPUTS].map(Math.round);
-console.log('Architecture: ' , architecture);
-const model = new synaptic.Architect.Perceptron(...architecture);
-
-const trainer = new synaptic.Trainer(model);
-const opts = {
+const TRAINER_SETTINGS = {
   rate: [0.03, 0.01, 0.005, 0.001, 0.0005],
   iterations: 9000,
   error: .01,
@@ -29,7 +15,6 @@ const opts = {
   log: 10,
   cost: synaptic.Trainer.cost.MSE
 };
-
 
 run().catch(e => console.error(e));
 
@@ -42,7 +27,25 @@ async function run() {
     return item.input.every(val => val !== -1);
   });
 
-  const result = trainer.train(filteredTrainingSet, opts);
+  const featureCount = _.get(filteredTrainingSet, '[0].input', []).length;
+  if (featureCount === 0) {
+    throw new Error('Could not determine feature count from trainingSet');
+  }
+  console.log(featureCount);
+
+  const INPUTS = featureCount;
+  const OUTPUTS = 1;
+  const LAYER_1 = Math.round(Math.sqrt((OUTPUTS+2)*INPUTS)) + Math.round(2 * Math.sqrt(INPUTS/(OUTPUTS+2)));
+  const LAYER_2 = OUTPUTS * Math.round(Math.sqrt(INPUTS/(OUTPUTS+2)));
+
+  const architecture = [INPUTS, INPUTS/4*2, OUTPUTS].map(Math.round);
+  console.log('Architecture: ' , architecture);
+  const model = new synaptic.Architect.Perceptron(...architecture);
+
+  const trainer = new synaptic.Trainer(model);
+
+
+  const result = trainer.train(filteredTrainingSet, TRAINER_SETTINGS);
   console.log(result);
 
   const exported = model.toJSON();
