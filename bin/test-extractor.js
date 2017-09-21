@@ -2,7 +2,7 @@ const MarcRecord = require('marc-record-js');
 const readline = require('readline');
 const _ = require('lodash');
 
-const title = require('./melinda-deduplication-common/similarity/feature-extractors/feature-title');
+const title = require('../melinda-deduplication-common/similarity/feature-extractors/feature-title');
 
 const createExtractor = title;
 
