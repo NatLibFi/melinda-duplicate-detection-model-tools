@@ -2,9 +2,9 @@ const MarcRecord = require('marc-record-js');
 const readline = require('readline');
 const _ = require('lodash');
 
-const title = require('../melinda-deduplication-common/similarity/feature-extractors/feature-title');
+const extractorName = process.argv[2] || 'title';
 
-const createExtractor = title;
+const createExtractor = require(`../melinda-deduplication-common/similarity/feature-extractors/feature-${extractorName}`);
 
 const rl = readline.createInterface({
   input: process.stdin
@@ -12,22 +12,28 @@ const rl = readline.createInterface({
 
 let lineNumber = 0;
 rl.on('line', function (line) {
-  const [label, r1, r2] = line.split('\t');
+  const [label, r1, ,r2] = line.split('\t');
+  
   const record1 = MarcRecord.fromString(r1);
   const record2 = MarcRecord.fromString(r2);
   
   const norm = (str) => str && str.replace(/\W/g, '').replace(/\s+/g, '').toUpperCase();
-  const same = norm(r1) === norm(r2);
+  const same = norm(r1) === norm(r2) ? 'EQUAL' : 'DIFFERENT';
 
   const extractor = createExtractor(toWeirdFormat(record1), toWeirdFormat(record2));
   const result = extractor.check();
 
+  if (result === null) {
+    return;
+  }
+
   const labelValue = label === 'positive' ? 1 : 0;
 
   lineNumber++;
-  if (result === 0.3 && !same) {
-    console.log(`${lineNumber}\t${labelValue}\t${result}\t${r1}\t${r2}`);
-  }
+
+  if (labelValue !== result)
+  console.log(`${lineNumber}\t${same}\t${label}\t${labelValue}\t${result}\t${r1}\t${r2}`);
+  
 });
 
 
@@ -35,7 +41,7 @@ function toWeirdFormat(record) {
 
   return {
     controlfield: record.getControlfields().map(convertControlField),
-    datafield: record.getDatafields().map(convertDataField),
+    datafield: record.getDatafields().filter(field => field.tag !== '').map(convertDataField),
   };
 
   function convertControlField(field) {

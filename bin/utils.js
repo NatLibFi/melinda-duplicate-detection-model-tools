@@ -197,7 +197,11 @@ function removeDiacritics(str) {
 
 function readRecordSet(filename) {
   const raw = fs.readFileSync(filename, 'utf8');
-  const trainingSetData = raw.split('\n\n\n').filter(str => str.length > 10).map(itemStr => {
+  return parseRecordSet(raw);
+}
+
+function parseRecordSet(setData) {
+  return setData.split('\n\n\n').filter(str => str.length > 10).map(itemStr => {
     try {
       const [labelLine, record1Str, record2Str] = itemStr.split('\n\n');
       const label = labelLine.substr(7);
@@ -212,12 +216,25 @@ function readRecordSet(filename) {
       throw error;
     }
   });
-  return trainingSetData;
+}
+
+function serializeRecordSet(recordSet) {
+
+  const asString = recordSet.map(item => {
+    const record1 = new MarcRecord(item.pair.record1).toString();
+    const record2 = new MarcRecord(item.pair.record2).toString();
+
+    return `LABEL: ${item.label}\n\n${record1}\n\n${record2}`;
+  }).join('\n\n\n');
+
+  return asString;
 }
 
 module.exports = {
   readLinesFromStdin,
   tail, nfc, upperCase, trim, collapse, toSpace, delChars,
   removeDiacritics,
-  readRecordSet
+  readRecordSet,
+  serializeRecordSet,
+  parseRecordSet
 };

@@ -3,12 +3,14 @@ const fs = require('fs');
 const _ = require('lodash');
 const MarcRecord = require('marc-record-js');
 
-const AVAILABLE_COMMANDS = ['remove', 'count', 'tostring', 'fromstring', 'labels', 'titles', 'partition', 'halve'];
+const Utils = require('./utils');
+
+const AVAILABLE_COMMANDS = ['remove', 'count', 'tostring', 'fromstring', 'labels', 'field', 'partition', 'halve'];
 
 try {
-  const { command, pairs } = readArguments(process.argv);
+  const { command, param } = readArguments(process.argv);
 
-  run(command, pairs).catch(error => {
+  run(command, param).catch(error => {
     console.error(error);
   });
   
@@ -17,7 +19,7 @@ try {
   process.exit(1);
 }
 
-async function run(command, pairs) {
+async function run(command, param) {
 
   const recordSetData = await readStdin();
 
@@ -25,21 +27,19 @@ async function run(command, pairs) {
   try {
     recordSet = JSON.parse(recordSetData);
   } catch(e) {
-    recordSet = recordSetData;
+    recordSet = Utils.parseRecordSet(recordSetData);
   }
 
-  const transformedSet = transformSet(recordSet, command, pairs);
-  if (_.isObject(transformedSet)) {
-    console.log(JSON.stringify(transformedSet));
-  } else {
-    console.log(transformedSet);
-  }
+  const transformedSet = transformSet(recordSet, command, param);
+  
+  console.log(Utils.serializeRecordSet(transformedSet));
   
 }
 
-function transformSet(recordSet, command, pairs) {
+function transformSet(recordSet, command, param) {
 
   if (command === 'remove') {
+    const pairs = param.map(parsePairArgument);
     const pairKeys = pairs.map(pairToKey);
     console.error(pairKeys);
     return recordSet.filter(item => {
@@ -52,7 +52,8 @@ function transformSet(recordSet, command, pairs) {
     });
   }
   if (command === 'count') {
-    return recordSet.length;
+    console.log(recordSet.length);
+    process.exit(0);
   }
 
   if (command === 'tostring') {
@@ -66,21 +67,7 @@ function transformSet(recordSet, command, pairs) {
     }).join('\n\n\n');
   }
   if (command === 'fromstring') {
-    return recordSet.split('\n\n\n').filter(str => str.length > 10).map(itemStr => {
-      try {
-        const [labelLine, record1Str, record2Str] = itemStr.split('\n\n');
-        const label = labelLine.substr(7);
-        const record1 = MarcRecord.fromString(record1Str.trim());
-        const record2 = MarcRecord.fromString(record2Str.trim());
-        return {
-          label,
-          pair: { record1, record2 }
-        };
-      } catch(error) {
-        console.log(itemStr);
-        throw error;
-      }
-    });
+    return Utils.readRecordSet(recordSet);
   }
 
   if (command === 'labels') {
@@ -94,15 +81,24 @@ function transformSet(recordSet, command, pairs) {
     }).join('\n');
   }
 
-  if (command === 'titles') {
-    const getTitle = getField('245');
-    return recordSet.map(item => {
+  if (command === 'field') {
+    
+    const tag = _.head(param);
+    const code = param[1];
+    const selectValue = code ? _.flow(getField(tag), getSubfield(code)): getField(tag);
+   
+    
+    recordSet.forEach(item => {
       
-      const title1 = getTitle(item.pair.record1);
-      const title2 = getTitle(item.pair.record2);
+      const field1 = selectValue(item.pair.record1);
+      const field2 = selectValue(item.pair.record2);
 
-      return `${item.label}\t${fieldToString(title1)}\t${fieldToString(title2)}`;
-    }).join('\n');
+      const str1 = field1 ? fieldToString(field1) : '';
+      const str2 = field2 ? fieldToString(field2) : '';
+      
+      console.log(`${item.label}\t${str1}\t--\t${str2}`);
+    });
+    process.exit(0);
   }
 
   if (command === 'partition') {
@@ -129,8 +125,6 @@ function transformSet(recordSet, command, pairs) {
   
   }
 
-  
-
   throw new Error(`Command ${command} not implemented.`);
 }
 
@@ -141,32 +135,27 @@ function pairToKey(pair) {
   return [id1num, id2num].sort().join('-');
 }
 
-function isSame(pair1, pair2) {
-  if (pair1[0] === pair2[0] && pair1[1] === pair2[1]) {
-    return true;
-  }
-  if (pair1[0] === pair2[1] && pair1[1] === pair2[0]) {
-    return true;
-  }
-  return false;
-}
-
 function getRecordId(record) {
   const f001 = _.head(record.fields.filter(field => field.tag === '001'));
   return _.get(f001, 'value');
 }
 const getField = tag => record => _.head(record.fields.filter(field => field.tag === tag));
 
+const getSubfield = code => field => {
+  const filteredSubs = _.get(field, 'subfields', []).filter(sub => sub.code === code);
+  return _.set(field, 'subfields', filteredSubs);
+};
+
 function readArguments(argv) {
 
   const command = argv[2];
-  const pairs = process.argv.slice(3).map(parsePairArgument);
-  
+  const param = process.argv.slice(3);
+
   if (!AVAILABLE_COMMANDS.includes(command)) {
     throw new Error(`Unknown command: ${command}`);
   }
   
-  return { command, pairs };
+  return { command, param };
 }
 
 function parsePairArgument(pairString) {
