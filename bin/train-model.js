@@ -9,8 +9,8 @@ const trainingSetFile = '/tmp/parsed-training-data';
 
 const TRAINER_SETTINGS = {
   rate: [0.03, 0.01, 0.005, 0.001, 0.0005],
-  iterations: 9000,
-  error: .01,
+  iterations: 6000,
+  error: .001,
   shuffle: true,
   log: 10,
   cost: synaptic.Trainer.cost.MSE
