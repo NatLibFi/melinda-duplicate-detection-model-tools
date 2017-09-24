@@ -35,7 +35,7 @@ function readableMeta(item) {
   const featureList = Object.keys(features).map(key => `${key}: ${features[key]}`).map(str => '    ' + str).join('\n');
 
   const generatedfeatureVector = SimilarityUtils.pairToFeatureVector(item.pair);
-  const generatedFeatureList = Object.keys(features).map(key => `${key}: ${features[key]}`).map(str => '    ' + str).join('\n');
+  const generatedFeatureList = Object.keys(generatedfeatureVector).map(key => `${key}: ${generatedfeatureVector[key]}`).map(str => '    ' + str).join('\n');
   debug(generatedFeatureList);
   
   return `
