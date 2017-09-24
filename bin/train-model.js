@@ -11,10 +11,12 @@ const trainingSetFile = '/tmp/parsed-training-data';
 
 let start = hrtimeToMs(process.hrtime());
 
+const TRAINER_ITERATIONS = 25000;
+
 const TRAINER_SETTINGS = {
   rate: [0.03, 0.01, 0.005, 0.001, 0.0005, 0.00005],
-  iterations: 25000,
-  error: .001,
+  iterations: TRAINER_ITERATIONS,
+  error: .0001,
   shuffle: true,
   cost: synaptic.Trainer.cost.MSE,
   schedule: {
@@ -25,7 +27,7 @@ const TRAINER_SETTINGS = {
       
       const delta = now - start;
       const perItem = delta / data.iterations;
-      const totalTime = perItem * 25000;
+      const totalTime = perItem * TRAINER_ITERATIONS;
       
       console.log(`iterations ${data.iterations} error ${data.error} rate ${data.rate} estimated runtime: ${msToTime(totalTime)}, time left: ${msToTime(totalTime - delta)}`);
     }
