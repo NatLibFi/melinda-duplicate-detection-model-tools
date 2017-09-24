@@ -7,7 +7,7 @@ const _ = require('lodash');
 const NUMBER_OF_WORKERS = 3;
 
 const SimilarityUtils = require('melinda-deduplication-common/similarity/utils');
-const Utils = require('melinda-deduplication-common/utils/utils');
+const {hrtimeToMs, msToTime} = require('melinda-deduplication-common/utils/utils');
 
 const trainingDataFile = '/tmp/parsed-training-data';
 
@@ -28,14 +28,14 @@ if (cluster.isMaster) {
   console.log(`Total size of trainingSet: ${len}`);
 
   let i=0;
-  let start = Utils.hrtimeToMs(process.hrtime());
+  let start = hrtimeToMs(process.hrtime());
 
   cluster.on('message', (worker, message) => {
 
     if (message.type === 'RESULT') {
       i++;
       if (i%10 === 0) {
-        let now = Utils.hrtimeToMs(process.hrtime());
+        let now = hrtimeToMs(process.hrtime());
 
         const delta = now - start;
         const perItem = delta / i;
@@ -124,16 +124,4 @@ function createVectors(label, pair) {
   const output = Array.of(label === 'positive' ? 1 : 0);
 
   return {featureVector, input, output };
-}
-
-function msToTime(ms) {
-  const totalSeconds = Math.round(ms / 1000);
-  const totalMins = Math.floor(totalSeconds / 60);
-
-  const hours = _.padStart(Math.floor(totalMins / 60), 2, '0');
-  const mins = _.padStart(totalMins % 60, 2, '0');
-  const secs = _.padStart(totalSeconds % 60, 2, '0');
-
-  return `${hours}:${mins}:${secs}`;
-
 }
