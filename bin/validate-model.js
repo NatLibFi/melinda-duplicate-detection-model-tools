@@ -1,50 +1,44 @@
 #!/usr/bin/env node
 /* eslint-disable no-console */
 const fs = require('fs');
+const cluster = require('cluster');
+const synaptic = require('synaptic');
+const Network = synaptic.Network;
 
 const LocalUtils = require('./utils');
+const {hrtimeToMs, msToTime} = require('melinda-deduplication-common/utils/utils');
 
 const SimilarityUtils = require('melinda-deduplication-common/similarity/utils');
 const Types = SimilarityUtils.Types;
 const DuplicateClass = SimilarityUtils.DuplicateClass;
-
 const MergeValidation = require('melinda-deduplication-common/marc-record-merge-utils/marc-record-merge-validate-service');
 
-const synaptic = require('synaptic');
-const Network = synaptic.Network;
-
+const NUMBER_OF_WORKERS = 3;
 const SAMPLE = process.env.SAMPLE || false;
 
-const exported = JSON.parse(fs.readFileSync('/tmp/duplicate-perceptron.json', 'utf8'));
-console.log('loaded /tmp/duplicate-perceptron.json');
-var importedNetwork = Network.fromJSON(exported);
+if (cluster.isMaster) {
+  const recordSetFile = process.argv[2] || 'data-sets/testSet';
+  console.log(`Validating model with ${recordSetFile}`);
 
-const recordSetFile = process.argv[2] || 'data-sets/testSet';
+  const testSet = LocalUtils.readRecordSet(recordSetFile);
+  const shuffledSet = shuffle(testSet);
+  const items = SAMPLE ? shuffledSet.slice(0,10) : shuffledSet;
 
-console.log(`Validating model with ${recordSetFile}`);
+  run(items).catch(error => console.error(error));
 
-const testSet = LocalUtils.readRecordSet(recordSetFile);
+  // Fork workers.
+  for (let i = 0; i < NUMBER_OF_WORKERS; i++) {
+    cluster.fork();
+  }
 
-const shuffledSet = shuffle(testSet);
+} else {
+  runWorker().catch(error => console.error(error));
+}
 
-const items = SAMPLE ? shuffledSet.slice(0,10) : shuffledSet;
+async function run(items) {
 
-run().catch(error => console.error(error));
-
-async function run() {
-
-  const len = items.length;
-  const probabilities = items.map((item, i) => {
-    if (i%10 === 0) {
-      console.log(`${i}/${len}`);
-    }
-    const featureVector = SimilarityUtils.pairToFeatureVector(item.pair);
-    const input = SimilarityUtils.featureVectorToInputVector(featureVector);
-    const synapticProbability = importedNetwork.activate(input)[0];
-
-    return Object.assign({}, item, { synapticProbability, featureVector });
-  });
-
+  const probabilities = await sendTasksToWorkers(items);
+  
   for (const item of probabilities) {
     // in the trainingset the record1 is always the preferred record.
 
@@ -62,7 +56,6 @@ async function run() {
     }
   }
 
- 
   const guesses = probabilities
     .map(addSynapticLabel)
     .map(addTypeLabel)
@@ -100,12 +93,38 @@ async function run() {
   console.log('wrote /tmp/guesses.json');
 
   const correctPercentage = Math.round(correct.length/guesses.length*1000)/1000 * 100;
-  console.log(`Correct: ${correct.length}/${guesses.length} =${correctPercentage}% (Set size: ${items.length})`);
+  console.log(`Correct: ${correct.length}/${guesses.length} =${correctPercentage}% (Set size: ${probabilities.length})`);
   console.log(`True negatives: ${cls.tn}`);
   console.log(`True positives: ${cls.tp}`);
   console.log(`False negatives: ${cls.fn}`);
   console.log(`False positives: ${cls.fp}`);
 
+}
+
+async function runWorker() {
+
+  const exported = JSON.parse(fs.readFileSync('/tmp/duplicate-perceptron.json', 'utf8'));
+  console.log('loaded /tmp/duplicate-perceptron.json');
+  const importedNetwork = Network.fromJSON(exported);
+  
+  const taskHandler = (message) => {
+    
+    const item = message.task;
+
+    const featureVector = SimilarityUtils.pairToFeatureVector(item.pair);
+    const input = SimilarityUtils.featureVectorToInputVector(featureVector);
+    const synapticProbability = importedNetwork.activate(input)[0];
+
+    const response = {
+      result: Object.assign({}, item, { synapticProbability, featureVector })
+    };
+
+    process && process.send(response);
+  };
+
+  process && process.on('message', taskHandler);
+  
+  process && process.send('READY');
 }
 
 const PROBABILITY_THRESHOLD = 0.75;
@@ -167,4 +186,53 @@ function getLabel(item) {
     case DuplicateClass.NOT_DUPLICATE : guessLabel = 'negative'; break;   
   }
   return guessLabel;
+}
+
+
+function sendTasksToWorkers(tasks) {
+
+  const tasksTotal = tasks.length;
+  let completedTasks = 0;
+  let start = hrtimeToMs(process.hrtime());
+  
+  return new Promise(resolve => {
+
+    const results = [];
+    let tasksRunning = 0;
+
+    cluster.on('message', (worker, message) => {
+
+      if (message.result) {
+        results.push(message.result);
+        tasksRunning--;
+
+        completedTasks++;
+        if (completedTasks % 10 === 0) {
+
+          let now = hrtimeToMs(process.hrtime());
+          
+          const delta = now - start;
+          const perItem = delta / completedTasks;
+          const totalTime = perItem * tasksTotal;
+
+
+          console.log(`${completedTasks}/${tasksTotal}, estimated runtime: ${msToTime(totalTime)}, time left: ${msToTime(totalTime - delta)}`);
+        }
+      }
+
+      const nextTask = tasks.shift();
+
+      if (nextTask) {
+        worker.send({ task: nextTask });
+        tasksRunning++;
+      } else {
+        worker.kill();
+
+        if (tasksRunning === 0) {
+          resolve(results);
+        }
+      }
+          
+    });
+  });
 }
