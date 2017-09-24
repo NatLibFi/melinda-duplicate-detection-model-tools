@@ -5,15 +5,31 @@ const fs = require('fs');
 const synaptic = require('synaptic');
 const _ = require('lodash');
 
+const {hrtimeToMs, msToTime} = require('melinda-deduplication-common/utils/utils');
+
 const trainingSetFile = '/tmp/parsed-training-data';
 
+let start = hrtimeToMs(process.hrtime());
+
 const TRAINER_SETTINGS = {
-  rate: [0.03, 0.01, 0.005, 0.001, 0.0005],
-  iterations: 6000,
+  rate: [0.03, 0.01, 0.005, 0.001, 0.0005, 0.00005],
+  iterations: 25000,
   error: .001,
   shuffle: true,
-  log: 10,
-  cost: synaptic.Trainer.cost.MSE
+  cost: synaptic.Trainer.cost.MSE,
+  schedule: {
+    every: 10,
+    do: function(data) {
+
+      let now = hrtimeToMs(process.hrtime());
+      
+      const delta = now - start;
+      const perItem = delta / data.iterations;
+      const totalTime = perItem * 25000;
+      
+      console.log(`iterations ${data.iterations} error ${data.error} rate ${data.rate} estimated runtime: ${msToTime(totalTime)}, time left: ${msToTime(totalTime - delta)}`);
+    }
+  }
 };
 
 run().catch(e => console.error(e));
