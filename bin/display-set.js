@@ -13,24 +13,37 @@ console.log('loaded /tmp/duplicate-perceptron.json');
 var importedNetwork = Network.fromJSON(exported);
 
 const recordSetFile = process.argv[2] || 'pumped-duplicates.txt';
+const skip = parseInt(process.argv[3] || 0);
 
 console.log(`Displaying candidates from ${recordSetFile}`);
 
 const items = LocalUtils.readRecordSet(recordSetFile);
 
+const recordFormat = chars => record => chars.includes(record.leader.substr(6,1));
 
 items.forEach((item, i) => {
+  while (i+1 < skip) {
+    return;
+  }
+
   const pair = item.pair;
 
   const record1 = MarcRecord.clone(pair.record1);
   const record2 = MarcRecord.clone(pair.record2);
 
+  if (!recordFormat(['c', 'd', 'i', 'j'])(record1)) {
+    return;
+  }
+
   fs.writeFileSync('/tmp/rec1', record1.toString());
   fs.writeFileSync('/tmp/rec2', record2.toString());
-
+  
   console.log(`Item ${i+1}/${items.length}`);
   console.log(readableMeta(item));
   execSync('/usr/bin/meld /tmp/rec1 /tmp/rec2');
+  if (skip > 0) {
+    process.exit(0);
+  }
 });
 
 function readableMeta(item) {
@@ -42,7 +55,7 @@ function readableMeta(item) {
   const featureVector = SimilarityUtils.pairToFeatureVector(item.pair);
   const input = SimilarityUtils.featureVectorToInputVector(featureVector);
   const synapticProbability = importedNetwork.activate(input)[0];
-  
+
   const mlpLabel = synapticProbability < 0.5 ? 'NOT_DUPLICATE' : 'IS_DUPLICATE';
  
   const features = featureVector;

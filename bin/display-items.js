@@ -10,7 +10,10 @@ const skip = parseInt(process.argv[2] || 0);
 
 const items = JSON.parse(fs.readFileSync('./tmp/falsePositives.json'));
 
-items.slice(skip).forEach((item, i) => {
+items.forEach((item, i) => {
+  while (i+1 < skip) {
+    return;
+  }
   const pair = item.pair;
 
   const record1 = MarcRecord.clone(pair.record1);
@@ -22,6 +25,7 @@ items.slice(skip).forEach((item, i) => {
   console.log(`Item ${i+1}/${items.length}`);
   console.log(readableMeta(item));
   execSync('/usr/bin/meld /tmp/rec1 /tmp/rec2');
+  
 });
 
 function readableMeta(item) {
