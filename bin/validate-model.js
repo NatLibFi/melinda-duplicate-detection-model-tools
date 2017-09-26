@@ -65,7 +65,9 @@ async function run(items) {
     //console.log(guesses);
   }
 
-  const labels = guesses.map(guess => `${guess.label} ${guess.synapticProbability}`);
+  const rnd = num => Math.round(num * 1E6) / 1E6;
+  
+  const labels = guesses.map(guess => `${guess.label} ${rnd(guess.synapticProbability)}`).join('\n');
   fs.writeFileSync('/tmp/guessLabels.txt', labels, 'utf8');
   console.log('wrote /tmp/guessLabels.txt');
 

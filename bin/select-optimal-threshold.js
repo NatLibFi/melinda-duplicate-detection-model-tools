@@ -1,6 +1,6 @@
 const _ = require('lodash');
 const fs = require('fs');
-const data = fs.readFileSync('/tmp/thresholddata.txt', 'utf8').split('\n').filter(f => f.length > 2).map(line => line.split(' '));
+const data = fs.readFileSync('/tmp/guessLabels.txt', 'utf8').split('\n').filter(f => f.length > 2).map(line => line.split(' '));
 
 const probabilities = data.map(item => item[1]);
 
@@ -38,7 +38,6 @@ const results = thresholdOptions.map(threshold => {
 
   return { threshold, correct: correct.length, cls };
 });
-
 
 results.forEach(res => {
   console.log(res.threshold, res.correct, res.cls.fp);
