@@ -41,7 +41,7 @@ async function start() {
     const firstRecord = await dataStoreService.loadRecord(base, duplicate.first.id);
     const secondRecord = await dataStoreService.loadRecord(base, duplicate.second.id);
 
-    console.log(`LABEL: negative positive\n\n${firstRecord.toString()}\n\n${secondRecord.toString()}\n\n`);
+    console.log(`LABEL: positive\n\n${firstRecord.toString()}\n\n${secondRecord.toString()}\n\n`);
     done();
   });
 
