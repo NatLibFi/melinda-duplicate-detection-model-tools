@@ -56,7 +56,7 @@ async function run() {
   const LAYER_1 = Math.round(Math.sqrt((OUTPUTS+2)*INPUTS)) + Math.round(2 * Math.sqrt(INPUTS/(OUTPUTS+2)));
   const LAYER_2 = OUTPUTS * Math.round(Math.sqrt(INPUTS/(OUTPUTS+2)));
 
-  const architecture = [INPUTS, INPUTS/4*2, OUTPUTS].map(Math.round);
+  const architecture = [INPUTS, LAYER_1, LAYER_1/2, OUTPUTS].map(Math.round);
   console.log('Architecture: ' , architecture);
   const model = new synaptic.Architect.Perceptron(...architecture);
 
