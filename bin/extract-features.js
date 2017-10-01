@@ -6,6 +6,8 @@ const _ = require('lodash');
 
 const NUMBER_OF_WORKERS = 3;
 
+const trainingSetPath = 'data-sets/trainingSet';
+
 const SimilarityUtils = require('melinda-deduplication-common/similarity/utils');
 const {hrtimeToMs, msToTime} = require('melinda-deduplication-common/utils/utils');
 
@@ -22,7 +24,7 @@ if (cluster.isMaster) {
   console.log(`Master ${process.pid} is running`);
 
   console.log('Parsing data-sets/trainingSet');
-  const trainingSetData = LocalUtils.readRecordSet('data-sets/trainingSet');
+  const trainingSetData = LocalUtils.readRecordSet(trainingSetPath);
 
   const len = trainingSetData.length;
   console.log(`Total size of trainingSet: ${len}`);
