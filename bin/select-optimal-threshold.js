@@ -38,9 +38,9 @@ const results = thresholdOptions.map(threshold => {
 
   return { threshold, correct: correct.length, cls };
 });
-
+results.sort((a,b) => a.threshold - b.threshold);
 results.forEach(res => {
-  console.log(res.threshold, res.correct, res.cls.fp);
+  console.log(res.threshold, res.correct, res.cls.fp, res.cls.fn);
 });
 
 function getLabel(item, threshold) {
